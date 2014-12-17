@@ -1,0 +1,25 @@
+{
+  "name": "locavore",
+  "version": "0.0.1",
+  "description": "Lovavore runs lambda functions locally.",
+  "main": "locavore.js",
+  "bin": {
+    "locavore": "./web.js",
+    "ltop": "./monitor.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "daguej",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.10.0",
+    "bytes": "^1.0.0",
+    "charm": "^1.0.0",
+    "colors": "^1.0.3",
+    "express": "^4.10.5",
+    "generic-pool": "^2.1.1",
+    "memwatch": "^0.2.2",
+    "pretty-hrtime": "^0.2.2"
+  }
+}
