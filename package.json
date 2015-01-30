@@ -5,7 +5,7 @@
   "main": "locavore.js",
   "bin": {
     "locavore": "./web.js",
-    "ltop": "./monitor.js"
+    "lvtop": "./monitor.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -17,6 +17,7 @@
     "bytes": "^1.0.0",
     "charm": "^1.0.0",
     "colors": "^1.0.3",
+    "console-title": "^1.0.1",
     "express": "^4.10.5",
     "generic-pool": "^2.1.1",
     "memwatch": "^0.2.2",

@@ -1,7 +1,8 @@
 var dgram = require('dgram'),
 	charm = require('charm')(),
 	colors = require('colors'),
-	bytes = require('bytes');
+	bytes = require('bytes'),
+	consoleTitle = require('console-title');
 
 var sock = dgram.createSocket('udp4');
 sock.on('error', console.error);
@@ -35,6 +36,7 @@ sock.on('message', function(msg) {
 });
 
 function init() {
+	consoleTitle('locavore monitor');
 	charm.pipe(process.stdout);
 	charm.reset();
 	charm.write('locavore monitor'.bgBlue + '\n');
