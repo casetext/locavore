@@ -142,6 +142,9 @@ exports.invoke = function(fn, data, cb) {
 					meta.stats.mem += result.memBytes;
 				}
 				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') +  '  Duration: '.gray + (result && result.time) + '  Memory Estimate*: '.gray + (result && result.mem));
+				if (err && err._exception) {
+					err = err._exception.stack;
+				}
 				console.log(err, result && result.returnValue);
 				sendQueueStats();
 				sendFnStats(fn);
@@ -170,9 +173,9 @@ exports.functionList = function(cb) {
 
 exports.stats = function(cb) {
 	cb(null, {
-		workers: pool.getPoolSize(),
-		avail: pool.availableObjectsCount(),
-		queued: pool.waitingClientsCount(),
+		workers: pool && pool.getPoolSize(),
+		avail: pool && pool.availableObjectsCount(),
+		queued: pool && pool.waitingClientsCount(),
 		done: completed
 	});
 };

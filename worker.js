@@ -12,6 +12,19 @@ function run(task) {
 		invokeid: task.id,
 		done: function(err, result) {
 			var time = process.hrtime(t), mem = hd.end().change;
+
+			if (err instanceof Error) {
+				// `Error` makes its properties non-enumerable, so an empty object would be all that gets serialized.
+				// This makes it so the error message actually makes it back to the main process.
+				err = {
+					_exception: {
+						type: err.type,
+						message: err.message,
+						stack: err.stack
+					}
+				};
+			}
+
 			process.send({
 				err: err,
 				returnValue: result,
@@ -24,7 +37,11 @@ function run(task) {
 	};
 
 	var hd = new memwatch.HeapDiff(), t = process.hrtime();
-	require(task.path)[task.fn](task.data, context);
+	try {
+		require(task.path)[task.fn](task.data, context);
+	} catch(ex) {
+		context.done(ex.toString() + '\r\n' + ex.stack);
+	}
 
 }
 
