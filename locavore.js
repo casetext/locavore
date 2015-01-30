@@ -16,7 +16,7 @@ exports.init = function(opts) {
 		try {
 			var oldStats = functions[fn] && functions[fn].stats;
 			if (fn != 'node_modules' && fs.statSync(path.join(opts.folder, fn)).isDirectory()) {
-				functions[fn] = require(path.join(opts.folder, fn, 'package.json'));
+				functions[fn] = JSON.parse(fs.readFileSync(path.join(opts.folder, fn, 'package.json')));
 				functions[fn].path = path.join(opts.folder, fn);
 				functions[fn].stats = oldStats || {
 					runs: 0,
@@ -103,7 +103,7 @@ function now(id) {
 }
 
 exports.invoke = function(fn, data, cb) {
-	var meta = functions[fn], id = taskid++, myPool = pool;
+	var meta = functions[fn], id = taskid++, myPool = pool, maxRuntime, timeout;
 	if (meta) {
 		myPool.acquire(function(err, proc) {
 			if (err) {
@@ -122,15 +122,34 @@ exports.invoke = function(fn, data, cb) {
 					data: data,
 					id: id
 				});
+
+				maxRuntime = Math.round(meta.timeout) || 3;
+				if (maxRuntime < 1) {
+					maxRuntime = 1;
+				} else if (maxRuntime > 60) {
+					maxRuntime = 60;
+				}
+
+				timeout = setTimeout(revoke, maxRuntime * 1000);
+
 			}
 
 			function release(err, result) {
+				clearTimeout(timeout);
 				proc.invokeid = null;
 				proc.removeListener('error', release);
 				proc.removeAllListeners('message');
 				myPool.release(proc);
 				done(err, result);
 			}
+
+			function revoke() {
+				proc.removeAllListeners();
+				proc.kill();
+				myPool.destroy(proc);
+				done('Function timed out after ' + maxRuntime + ' seconds; killed.');
+			}
+
 			function done(err, result) {
 				completed++;
 				meta.stats.runs++;
@@ -141,11 +160,11 @@ exports.invoke = function(fn, data, cb) {
 					meta.stats.time += result.ms;
 					meta.stats.mem += result.memBytes;
 				}
-				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') +  '  Duration: '.gray + (result && result.time) + '  Memory Estimate*: '.gray + (result && result.mem));
+				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') +  '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
 				if (err && err._exception) {
 					err = err._exception.stack;
 				}
-				console.log(err, result && result.returnValue);
+				console.log(err, result && result.returnValue || '');
 				sendQueueStats();
 				sendFnStats(fn);
 			}
