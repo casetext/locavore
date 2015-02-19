@@ -111,11 +111,14 @@ exports.invoke = function(fn, data, cb) {
 			} else {
 				sendQueueStats();
 				proc.invokeid = id;
+				proc.once('exit', function(code) {
+					release(new Error('Worker exited with code ' + code));
+				});
 				proc.once('error', release);
 				proc.once('message', function(msg) {
 					release(msg.err, msg);
 				});
-				console.log(now(id), 'START');
+				console.log(now(id), 'START', fn);
 				proc.send({
 					path: meta.path,
 					fn: meta.lambdaFunction || 'handler',
@@ -138,6 +141,7 @@ exports.invoke = function(fn, data, cb) {
 				clearTimeout(timeout);
 				proc.invokeid = null;
 				proc.removeListener('error', release);
+				proc.removeAllListeners('exit');
 				proc.removeAllListeners('message');
 				myPool.release(proc);
 				done(err, result);
@@ -160,7 +164,7 @@ exports.invoke = function(fn, data, cb) {
 					meta.stats.time += result.ms;
 					meta.stats.mem += result.memBytes;
 				}
-				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') +  '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
+				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') + ' ' + fn + '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
 				if (err && err._exception) {
 					err = err._exception.stack;
 				}
