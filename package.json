@@ -21,6 +21,7 @@
     "express": "^4.10.5",
     "generic-pool": "^2.1.1",
     "memwatch": "^0.2.2",
-    "pretty-hrtime": "^0.2.2"
+    "pretty-hrtime": "^0.2.2",
+    "yargs": "^3.2.1"
   }
 }

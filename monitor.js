@@ -32,6 +32,9 @@ sock.on('message', function(msg) {
 	} else if (msg.type == 'stop') {
 		charm.position(70, 1).write('stopped'.bgRed);
 		bot();
+	} else if (msg.type == 'debugging') {
+		charm.position(70, 1).write('debug!!'.bgMagenta);
+		bot();
 	}
 });
 

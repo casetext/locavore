@@ -6,11 +6,17 @@ var fs = require('fs'),
 	cpus = require('os').cpus().length,
 	colors = require('colors');
 
-var functions = {}, pool, taskid=0, completed=0;
+var functions = {}, pool, taskid=0, completed=0, debug=false;
 
 exports.init = function(opts) {
 
 	var watchers = [];
+
+	if (opts.debug) {
+		debug = true;
+		opts.maxWorkers = 1;
+		send({type:'debugging'});
+	}
 
 	fs.readdirSync(opts.folder).forEach(function(fn) {
 		try {
@@ -37,11 +43,14 @@ exports.init = function(opts) {
 		name: 'LambdaPool',
 		create: function(cb) {
 			var proc = child_process.fork(__dirname + '/worker.js', [], {
-				silent: true
+				silent: true,
+				execArgv: debug ? ['--debug-brk'] : []
 			});
-			var timeout = setTimeout(function() {
-				oops(new Error('Timed out waiting for worker process to get ready.'));
-			}, 30000);
+			if (!debug) {
+				var timeout = setTimeout(function() {
+					oops(new Error('Timed out waiting for worker process to get ready.'));
+				}, 30000);
+			}
 			proc.once('error', oops);
 			proc.once('message', function(msg) {
 				if (msg.ready) {
@@ -133,17 +142,25 @@ exports.invoke = function(fn, data, cb) {
 					maxRuntime = 60;
 				}
 
-				timeout = setTimeout(revoke, maxRuntime * 1000);
+				if (!debug) {
+					timeout = setTimeout(revoke, maxRuntime * 1000);
+				}
 
 			}
 
 			function release(err, result) {
 				clearTimeout(timeout);
-				proc.invokeid = null;
-				proc.removeListener('error', release);
-				proc.removeAllListeners('exit');
-				proc.removeAllListeners('message');
-				myPool.release(proc);
+				if (debug) {
+					proc.removeAllListeners();
+					proc.kill();
+					myPool.destroy(proc);
+				} else {
+					proc.invokeid = null;
+					proc.removeListener('error', release);
+					proc.removeAllListeners('exit');
+					proc.removeAllListeners('message');
+					myPool.release(proc);
+				}
 				done(err, result);
 			}
 

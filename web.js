@@ -1,10 +1,12 @@
 var express = require('express')
 	, bodyParser = require('body-parser')
 	, app = express()
+	, argv = require('yargs').argv
 	, locavore = require('./locavore');
 
 
 locavore.init({
+	debug: argv.d,
 	folder: process.cwd()
 });
 
