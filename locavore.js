@@ -89,7 +89,7 @@ exports.init = function(opts) {
 					oldPool = null;
 				});
 
-			}, 100);
+			}, 200);
 			watchers.forEach(function(watcher) {
 				watcher.close();
 			});

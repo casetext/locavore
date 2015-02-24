@@ -25,14 +25,19 @@ function run(task) {
 				};
 			}
 
-			process.send({
-				err: err,
-				returnValue: result,
-				time: prettyHrtime(time),
-				ms: (time[0] * 1000) + (time[1] / 1000 / 1000),
-				mem: mem.size,
-				memBytes: mem.size_bytes
-			});
+			// The setTimeout helps avoid a situation where the master prints "job done" to the
+			// console BEFORE the last of stdout from this process is echoed, resulting in you
+			// seeing a very confusing series of events in the console.
+			setTimeout(function() {
+				process.send({
+					err: err,
+					returnValue: result,
+					time: prettyHrtime(time),
+					ms: (time[0] * 1000) + (time[1] / 1000 / 1000),
+					mem: mem.size,
+					memBytes: mem.size_bytes
+				});
+			}, 1);
 		}
 	};
 
