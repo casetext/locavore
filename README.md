@@ -27,7 +27,7 @@ You can then call `locavore.core.init({...})` and then `locavore.web.listen(port
 API
 ---
 
-### locavore.core.init(options)
+### `locavore.core.init(options)`
 
 Initializes Locavore.
 
@@ -35,15 +35,15 @@ Initializes Locavore.
 - `options.maxWorkers` - the maximum number of concurrent functions.  Defaults to *cpu cores* * 2.
 - `options.debug` - enable debug mode.  In debug mode, locavore sets `maxWorkers` to 1, disables timeouts, and spawns a new worker process for each function invocation with `--debug-brk`.  You must then connect a debugger to the process and resume execution.
 
-### locavore.core.invoke(fn, data, cb)
+### `locavore.core.invoke(fn, data, cb)`
 
 Invokes the function (in the folder) named `fn` and passes in `data`.
 
-### locavore.core.functionList(cb)
+### `locavore.core.functionList(cb)`
 
 Gives you a list of functions that Locavore knows about.
 
-### locavore.core.stats(cb)
+### `locavore.core.stats(cb)`
 
 Gives you an object containing the following statistics:
 
@@ -51,6 +51,10 @@ Gives you an object containing the following statistics:
 - `avail` - The current number of available workers
 - `queued` - The current number of queued function invocations
 - `done` - The total number of completed function invocations
+
+### `locavore.core.drain(cb)`
+
+Calls the function `cb` after all pending function invocations have completed.
 
 REST API
 --------

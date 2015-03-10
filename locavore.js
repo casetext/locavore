@@ -220,6 +220,12 @@ exports.stats = function(cb) {
 	});
 };
 
+
+exports.drain = function(cb) {
+	pool.drain(cb);
+};
+
+
 var udp = dgram.createSocket('udp4'), nextSend = {};
 function send(obj, cb) {
 	obj = new Buffer(JSON.stringify(obj));
