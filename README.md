@@ -13,7 +13,11 @@ Usage
 ### Option 1
 `npm install -g locavore`.  Type `locavore` in a folder that contains one or more folders containing your lambda functions.  (Or type `locavore <path-to-functions-folder>`)
 
-Locavore will start a web server on `process.env.PORT || 3033` that emulates the Lambda REST API.
+Locavore will start a web server that emulates the Lambda REST API.  The server runs on port:
+
+- Specified by `-p` or `--port`; or
+- Specified by the `PORT` environment variable; or
+- 3033
 
 ### Option 2
 `require('locavore')` in your project.  

@@ -1,5 +1,7 @@
 var web = require('./web'),
-	argv = require('yargs').argv,
+	argv = require('yargs')
+		.alias('p','port')
+		.argv,
 	locavore = require('./locavore');
 
 
@@ -9,7 +11,7 @@ locavore.init({
 	folder: argv._[0] || process.cwd()
 });
 
-web.listen(3033);
+web.listen(argv.p || process.env.PORT || 3033);
 
 locavore.functionList(function(err, list) {
 	console.log('Ready. ', list.length, 'functions');
