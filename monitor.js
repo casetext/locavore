@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var dgram = require('dgram'),
 	charm = require('charm')(),
 	colors = require('colors'),

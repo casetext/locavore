@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var web = require('./web'),
 	argv = require('yargs')
 		.alias('p','port')
