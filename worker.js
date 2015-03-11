@@ -8,10 +8,13 @@ process.on('message', function(msg) {
 
 
 function run(task) {
-	var context = {
+	var hd, t, context = {
 		invokeid: task.id,
 		done: function(err, result) {
-			var time = process.hrtime(t), mem = hd.end().change;
+			var time = process.hrtime(t), mem;
+			if (hd) {
+				mem = hd.end().change;
+			}
 
 			if (err instanceof Error) {
 				// `Error` makes its properties non-enumerable, so an empty object would be all that gets serialized.
@@ -30,18 +33,22 @@ function run(task) {
 			// seeing a very confusing series of events in the console.
 			setTimeout(function() {
 				process.send({
+					id: task.id,
 					err: err,
 					returnValue: result,
 					time: prettyHrtime(time),
 					ms: (time[0] * 1000) + (time[1] / 1000 / 1000),
-					mem: mem.size,
-					memBytes: mem.size_bytes
+					mem: mem && mem.size,
+					memBytes: mem && mem.size_bytes
 				});
 			}, 1);
 		}
 	};
 
-	var hd = new memwatch.HeapDiff(), t = process.hrtime();
+	if (!task.multi) {
+		hd = new memwatch.HeapDiff();
+	}
+	t = process.hrtime();
 	try {
 		require(task.path)[task.fn](task.data, context);
 	} catch(ex) {

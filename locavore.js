@@ -1,21 +1,29 @@
 var fs = require('fs'),
 	dgram = require('dgram'),
 	path = require('path'),
-	Pool = require('generic-pool').Pool,
+	singleTenancy = require('./tenancy/single'),
+	multiTenancy = require('./tenancy/multi'),
 	child_process = require('child_process'),
 	cpus = require('os').cpus().length,
 	colors = require('colors');
 
-var functions = {}, pool, taskid=0, completed=0, debug=false;
+var functions = {}, watchers = [], pool, taskid=0, completed=0, debug=false;
 
 exports.init = function(opts) {
 
-	var watchers = [];
+	var tenant;
 
 	if (opts.debug) {
 		debug = true;
 		opts.maxWorkers = 1;
+		tenant = singleTenancy;
 		send({type:'debugging'});
+	} else {
+		if (opts.maxPerProcess > 1) {
+			tenant = multiTenancy;
+		} else {
+			tenant = singleTenancy;
+		}
 	}
 
 	fs.readdirSync(opts.folder).forEach(function(fn) {
@@ -39,51 +47,7 @@ exports.init = function(opts) {
 	});
 
 
-	pool = Pool({
-		name: 'LambdaPool',
-		create: function(cb) {
-			var proc = child_process.fork(__dirname + '/worker.js', [], {
-				silent: true,
-				execArgv: debug ? ['--debug-brk'] : []
-			});
-			if (!debug) {
-				var timeout = setTimeout(function() {
-					oops(new Error('Timed out waiting for worker process to get ready.'));
-				}, 30000);
-			}
-			proc.once('error', oops);
-			proc.once('message', function(msg) {
-				if (msg.ready) {
-					clearTimeout(timeout);
-					proc.removeListener('error', oops);
-					proc.on('error', function(err) {
-						console.error(now(proc.invokeid), 'Strange worker proc error'.red, err);
-					});
-					cb(null, proc);
-				}
-			});
-			proc.stdout.on('data', function(data) {
-				process.stdout.write(now(proc.invokeid).bgBlue + ' ' + data);
-			});
-			proc.stderr.on('data', function(data) {
-				process.stdout.write(now(proc.invokeid).bgRed + ' ' + data);
-			});
-
-			function oops(err) {
-				clearTimeout(timeout);
-				cb(err);
-			}
-		},
-		destroy: function(proc) {
-			proc.kill();
-			sendQueueStats();
-		},
-		validate: function(proc) {
-			return proc.connected;
-		},
-		max: opts.maxWorkers || cpus * 2
-	});
-
+	pool = tenant.getPool(opts);
 
 	var doom;
 	function needReload() {
@@ -102,6 +66,7 @@ exports.init = function(opts) {
 			watchers.forEach(function(watcher) {
 				watcher.close();
 			});
+			watchers = [];
 		}
 	}
 
@@ -112,22 +77,16 @@ function now(id) {
 }
 
 exports.invoke = function(fn, data, cb) {
-	var meta = functions[fn], id = taskid++, myPool = pool, maxRuntime, timeout;
+	var meta = functions[fn], id = ++taskid, myPool = pool, maxRuntime, timeout;
 	if (meta) {
 		myPool.acquire(function(err, proc) {
 			if (err) {
 				done(err);
 			} else {
-				sendQueueStats();
+				// sendQueueStats();
 				proc.invokeid = id;
-				proc.once('exit', function(code) {
-					release(new Error('Worker exited with code ' + code));
-				});
-				proc.once('error', release);
-				proc.once('message', function(msg) {
-					release(msg.err, msg);
-				});
-				console.log(now(id), 'START', fn);
+				proc.once('done', release);
+				console.log(now(id), 'START', fn, ('on ' + proc.pid).gray);
 				proc.send({
 					path: meta.path,
 					fn: meta.lambdaFunction || 'handler',
@@ -150,25 +109,21 @@ exports.invoke = function(fn, data, cb) {
 
 			function release(err, result) {
 				clearTimeout(timeout);
+				done(err, result);
 				if (debug) {
-					proc.removeAllListeners();
-					proc.kill();
+					proc.destroy();
 					myPool.destroy(proc);
 				} else {
 					proc.invokeid = null;
-					proc.removeListener('error', release);
-					proc.removeAllListeners('exit');
-					proc.removeAllListeners('message');
+					proc.removeListener('done', release);
 					myPool.release(proc);
 				}
-				done(err, result);
 			}
 
 			function revoke() {
-				proc.removeAllListeners();
-				proc.kill();
-				myPool.destroy(proc);
 				done('Function timed out after ' + maxRuntime + ' seconds; killed.');
+				proc.destroy(true);
+				myPool.destroy(proc);
 			}
 
 			function done(err, result) {
@@ -186,12 +141,12 @@ exports.invoke = function(fn, data, cb) {
 					err = err._exception.stack;
 				}
 				console.log(err, result && result.returnValue || '');
-				sendQueueStats();
-				sendFnStats(fn);
+				// sendQueueStats();
+				// sendFnStats(fn);
 			}
 		});
 
-		sendQueueStats();
+		// sendQueueStats();
 		cb(null, id); // Immediately return success.
 		      // If there are no available workers, `acquire` queues the request until one becomes available.
 	} else {
@@ -225,7 +180,14 @@ exports.drain = function(cb) {
 	pool.drain(cb);
 };
 
+exports.shutdown = function() {
+	watchers.forEach(function(watcher) {
+		watcher.close();
+	});
+	pool.destroyAllNow();
+};
 
+/*
 var udp = dgram.createSocket('udp4'), nextSend = {};
 function send(obj, cb) {
 	obj = new Buffer(JSON.stringify(obj));
@@ -262,4 +224,4 @@ process.on('SIGINT', function() {
 	send({type:'stop'}, function() {
 		process.exit(0);
 	});
-});
+});*/
