@@ -7,7 +7,7 @@ var fs = require('fs'),
 	cpus = require('os').cpus().length,
 	colors = require('colors');
 
-var functions = {}, watchers = [], pool, taskid=0, completed=0, debug=false;
+var functions = {}, watchers = [], pool, currentOpts, taskid=0, completed=0, errors=0, debug=false;
 
 exports.init = function(opts) {
 
@@ -25,6 +25,7 @@ exports.init = function(opts) {
 			tenant = singleTenancy;
 		}
 	}
+	currentOpts = opts;
 
 	fs.readdirSync(opts.folder).forEach(function(fn) {
 		try {
@@ -86,7 +87,9 @@ exports.invoke = function(fn, data, cb) {
 				// sendQueueStats();
 				proc.invokeid = id;
 				proc.once('done', release);
-				console.log(now(id), 'START', fn, ('on ' + proc.pid).gray);
+				if (!currentOpts.quiet) {
+					console.log(now(id), 'START', fn, ('on ' + proc.pid).gray);
+				}
 				proc.send({
 					path: meta.path,
 					fn: meta.lambdaFunction || 'handler',
@@ -121,8 +124,10 @@ exports.invoke = function(fn, data, cb) {
 			}
 
 			function revoke() {
-				done('Function timed out after ' + maxRuntime + ' seconds; killed.');
-				proc.destroy(true);
+				done('Function timed out after ' + maxRuntime + ' seconds; killed ' + proc.pid + '.');
+				if (proc.reap) {
+					proc.reap();
+				}
 				myPool.destroy(proc);
 			}
 
@@ -130,17 +135,20 @@ exports.invoke = function(fn, data, cb) {
 				completed++;
 				meta.stats.runs++;
 				if (err) {
+					errors++;
 					meta.stats.errors++;
 				}
 				if (result) {
 					meta.stats.time += result.ms;
 					meta.stats.mem += result.memBytes;
 				}
-				console.log(now(id), (err ? 'ERROR'.bgRed : 'END') + ' ' + fn + '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
-				if (err && err._exception) {
-					err = err._exception.stack;
+				if (!currentOpts.quiet) {
+					console.log(now(id), (err ? 'ERROR'.bgRed : 'END') + ' ' + fn + '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
+					if (err && err._exception) {
+						err = err._exception.stack;
+					}
+					console.log(err, result && result.returnValue || '');
 				}
-				console.log(err, result && result.returnValue || '');
 				// sendQueueStats();
 				// sendFnStats(fn);
 			}
@@ -150,7 +158,9 @@ exports.invoke = function(fn, data, cb) {
 		cb(null, id); // Immediately return success.
 		      // If there are no available workers, `acquire` queues the request until one becomes available.
 	} else {
-		console.warn(now(id), 'WARN'.bgYellow + ' Could not find function '.yellow + fn);
+		if (!currentOpts.quiet) {
+			console.warn(now(id), 'WARN'.bgYellow + ' Could not find function '.yellow + fn);
+		}
 		cb(new Error('Function not found.'));
 	}
 
@@ -171,10 +181,15 @@ exports.stats = function(cb) {
 		workers: pool && pool.getPoolSize(),
 		avail: pool && pool.availableObjectsCount(),
 		queued: pool && pool.waitingClientsCount(),
-		done: completed
+		done: completed,
+		errors: errors
 	});
 };
 
+exports.resetStats = function() {
+	completed = 0;
+	errors = 0;
+};
 
 exports.drain = function(cb) {
 	pool.drain(cb);

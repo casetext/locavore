@@ -30,6 +30,9 @@ exports.getPool = function(opts) {
 					procCount--;
 					cb(err);
 				} else {
+					proc.invokeid = '<' + proc.pid + '>';
+					proc.multiplexCount = 0;
+					proc.invoking = {};
 					cb(null, new MultiplexedProcess(proc));
 
 					var retry = createQueue;
@@ -43,8 +46,7 @@ exports.getPool = function(opts) {
 	}
 
 	function MultiplexedProcess(proc) {
-		proc.multiplexCount = (proc.multiplexCount || 0) + 1;
-		proc.invoking = {};
+		proc.multiplexCount++;
 		this.pid = proc.pid;
 
 		if (proc.multiplexCount < opts.maxPerProcess) {
@@ -67,9 +69,15 @@ exports.getPool = function(opts) {
 		this.process.send(args);
 
 		function done(err, result) {
-			delete self.process.invoking[args.id];
 			if (result && result.id) {
 				if (result.id == args.id) {
+					if (!self.process.invoking[args.id]) return;
+					delete self.process.invoking[args.id];
+
+					if (self.process.reap && Object.keys(self.process.invoking).length == 0) {
+						self.process.destroy();
+					}
+
 					self.process.removeListener('done', done);
 					self.emit('done', err, result);
 				}
@@ -80,20 +88,24 @@ exports.getPool = function(opts) {
 		}
 	};
 
-	MultiplexedProcess.prototype.destroy = function(reap) {
-		if (reap) {
-			this.process.reap = reap;
-			delete this.process.invoking[this.invokeid];
-			procCount--;
-		}
-		if (--this.process.multiplexCount <= 0) {
+	MultiplexedProcess.prototype.reap = function() {
+		this.process.reap = true;
+		delete this.process.invoking[this.invokeid];
+		procCount--;
+	};
+
+	MultiplexedProcess.prototype.destroy = function() {
+		this.process.multiplexCount--;
+		if (this.process.multiplexCount <= 0) {
 			if (!this.process.reap) {
 				procCount--;
 			}
 			delete shallow[this.process.pid];
 			this.process.destroy();
 		} else {
-			shallow[this.process.pid] = this.process;
+			if (!this.process.reap) {
+				shallow[this.process.pid] = this.process;
+			}
 		}
 	};
 

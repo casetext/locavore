@@ -22,12 +22,14 @@ exports.getProcess = function(opts, cb) {
 			ready();
 		}
 	});
-	proc.stdout.on('data', function(data) {
-		process.stdout.write(now(proc.invokeid).bgBlue + ' ' + data);
-	});
-	proc.stderr.on('data', function(data) {
-		process.stdout.write(now(proc.invokeid).bgRed + ' ' + data);
-	});
+	if (!opts.quiet) {
+		proc.stdout.on('data', function(data) {
+			process.stdout.write(now(proc.invokeid).bgBlue + ' ' + data);
+		});
+		proc.stderr.on('data', function(data) {
+			process.stdout.write(now(proc.invokeid).bgRed + ' ' + data);
+		});
+	}
 
 	function oops(err) {
 		clearTimeout(timeout);
