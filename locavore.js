@@ -75,10 +75,7 @@ exports.init = function(opts) {
 				});
 
 			}, 200);
-			watchers.forEach(function(watcher) {
-				watcher.close();
-			});
-			watchers = [];
+			clearWatchers();
 		}
 	}
 
@@ -206,10 +203,14 @@ exports.drain = function(cb) {
 	pool.drain(cb);
 };
 
-exports.shutdown = function() {
+function clearWatchers() {
 	watchers.forEach(function(watcher) {
 		watcher.close();
 	});
+	watchers = [];
+}
+exports.shutdown = function() {
+	clearWatchers();
 	pool.destroyAllNow();
 };
 
