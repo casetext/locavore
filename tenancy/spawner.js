@@ -17,15 +17,19 @@ exports.getProcess = function(opts, cb) {
 			clearTimeout(timeout);
 			proc.removeListener('error', oops);
 			proc.on('error', function(err) {
-				console.error(now(proc.invokeid), 'Strange worker proc error'.red, err);
+				if (opts.verbosity >= 1) {
+					console.error(now(proc.invokeid), 'Strange worker proc error'.red, err);
+				}
 			});
 			ready();
 		}
 	});
-	if (!opts.quiet) {
+	if (opts.verbosity >= 3) {
 		proc.stdout.on('data', function(data) {
 			process.stdout.write(now(proc.invokeid).bgBlue + ' ' + data);
 		});
+	}
+	if (opts.verbosity >= 2) {
 		proc.stderr.on('data', function(data) {
 			process.stdout.write(now(proc.invokeid).bgRed + ' ' + data);
 		});

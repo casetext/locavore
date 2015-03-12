@@ -47,7 +47,7 @@ describe('Locavore', function() {
 function configure(workers, perProcess) {
 	beforeEach(function() {
 		locavore.init({
-			quiet: true,
+			verbosity: 0,
 			folder: testFunctions,
 			maxWorkers: workers,
 			maxPerProcess: perProcess

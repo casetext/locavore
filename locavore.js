@@ -13,9 +13,14 @@ exports.init = function(opts) {
 
 	var tenant;
 
+	if (typeof opts.verbosity != 'number' || !isFinite(opts.verbosity)) {
+		opts.verbosity = 4;
+	}
+
 	if (opts.debug) {
 		debug = true;
 		opts.maxWorkers = 1;
+		opts.maxPerProcess = 1;
 		tenant = singleTenancy;
 		send({type:'debugging'});
 	} else {
@@ -43,7 +48,9 @@ exports.init = function(opts) {
 				watchers.push(fs.watch(functions[fn].path, needReload));
 			}
 		} catch(ex) {
-			console.error('Could not read metadata for function'.yellow, fn, ex);
+			if (opts.verbosity >= 1) {
+				console.error('Could not read metadata for function'.yellow, fn, ex);
+			}
 		}
 	});
 
@@ -53,12 +60,16 @@ exports.init = function(opts) {
 	var doom;
 	function needReload() {
 		if (!doom) {
-			console.log(now('locavore'.bgGreen), 'Change to function detected, reloading...');
+			if (opts.verbosity >= 1) {
+				console.log(now('locavore'.bgGreen), 'Change to function detected, reloading...');
+			}
 			doom = setTimeout(function() {
 				var oldPool = pool;
 				exports.init(opts);
 				oldPool.drain(function() {
-					console.log(now('locavore'.bgGreen), 'Drained old worker pool');
+					if (opts.verbosity >= 1) {
+						console.log(now('locavore'.bgGreen), 'Drained old worker pool');
+					}
 					oldPool.destroyAllNow();
 					oldPool = null;
 				});
@@ -87,7 +98,7 @@ exports.invoke = function(fn, data, cb) {
 				// sendQueueStats();
 				proc.invokeid = id;
 				proc.once('done', release);
-				if (!currentOpts.quiet) {
+				if (currentOpts.verbosity >= 4) {
 					console.log(now(id), 'START', fn, ('on ' + proc.pid).gray);
 				}
 				proc.send({
@@ -142,7 +153,7 @@ exports.invoke = function(fn, data, cb) {
 					meta.stats.time += result.ms;
 					meta.stats.mem += result.memBytes;
 				}
-				if (!currentOpts.quiet) {
+				if (currentOpts.verbosity >= 4 || (currentOpts.verbosity >= 2 && err)) {
 					console.log(now(id), (err ? 'ERROR'.bgRed : 'END') + ' ' + fn + '  Duration: '.gray + ((result && result.time) || '-') + '  Memory Estimate*: '.gray + ((result && result.mem) || '-'));
 					if (err && err._exception) {
 						err = err._exception.stack;
@@ -158,7 +169,7 @@ exports.invoke = function(fn, data, cb) {
 		cb(null, id); // Immediately return success.
 		      // If there are no available workers, `acquire` queues the request until one becomes available.
 	} else {
-		if (!currentOpts.quiet) {
+		if (currentOpts.verbosity >= 1) {
 			console.warn(now(id), 'WARN'.bgYellow + ' Could not find function '.yellow + fn);
 		}
 		cb(new Error('Function not found.'));
