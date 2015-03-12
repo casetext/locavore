@@ -8,7 +8,7 @@
     "lvtop": "./monitor.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -R spec"
   },
   "author": "daguej",
   "repository": {
@@ -27,5 +27,9 @@
     "memwatch": "^0.2.2",
     "pretty-hrtime": "^0.2.2",
     "yargs": "^3.2.1"
+  },
+  "devDependencies": {
+    "chai": "^2.1.1",
+    "mocha": "^2.2.1"
   }
 }
