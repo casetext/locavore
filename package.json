@@ -21,6 +21,7 @@
     "bytes": "^1.0.0",
     "charm": "^1.0.0",
     "colors": "^1.0.3",
+    "comms": "0.0.1",
     "console-title": "^1.0.1",
     "express": "^4.10.5",
     "generic-pool": "^2.1.1",

@@ -1,44 +1,17 @@
 #!/usr/bin/env node
 
-var dgram = require('dgram'),
+var comms = require('comms')(),
 	charm = require('charm')(),
 	colors = require('colors'),
 	bytes = require('bytes'),
-	consoleTitle = require('console-title');
+	consoleTitle = require('console-title'),
+	argv = require('yargs')
+		.alias('p','port').default('p', 3034).describe('p', 'Connect to this port')
+		.alias('h','host').default('h', '127.0.0.1').describe('h', 'Connect to this host')
+		.help('help').usage('Usage: $0')
+		.argv;
 
-var sock = dgram.createSocket('udp4');
-sock.on('error', console.error);
-sock.bind(3033, '127.0.0.1', function(err) {
-	if (err) {
-		console.error('Could not bind to port.'.red);
-		process.exit(1);
-	} else {
-		init();
-	}
-});
 
-sock.on('message', function(msg) {
-	try {
-		msg = JSON.parse(msg.toString());
-
-	} catch(ex) {
-
-	}
-
-	if (msg.type == 'queue') {
-		queueStats(msg.stats);
-	} else if (msg.type == 'fn') {
-		fnStats(msg.name, msg.stats);
-	} else if (msg.type == 'start') {
-		reset();
-	} else if (msg.type == 'stop') {
-		charm.position(70, 1).write('stopped'.bgRed);
-		bot();
-	} else if (msg.type == 'debugging') {
-		charm.position(70, 1).write('debug!!'.bgMagenta);
-		bot();
-	}
-});
 
 function init() {
 	consoleTitle('locavore monitor');
@@ -50,7 +23,20 @@ function init() {
 	charm.write('================================================================================\n'.gray);
 	bot();
 }
+init();
 
+comms.on('init', function(msg) {
+	reset();
+	if (msg.debug) {
+		charm.position(70, 1).write('debug!!'.bgMagenta);
+		bot();
+	}
+});
+
+comms.on('disconnected', function() {
+	charm.position(70, 1).write('stopped'.bgRed);
+	bot();
+});
 
 function queueStats(stats) {
 	charm.position(9, 2).write(''+stats.queued + '       ');
@@ -59,22 +45,26 @@ function queueStats(stats) {
 	bot();
 }
 
+comms.on('queue', function(msg) {
+	queueStats(msg.stats);
+});
 
 var fnLine = {}, nextFnLine = 6;
-function fnStats(fn, stats) {
-	if (!fnLine[fn]) {
-		fnLine[fn] = nextFnLine++;
+
+comms.on('fn', function(msg) {
+	if (!fnLine[msg.name]) {
+		fnLine[msg.name] = nextFnLine++;
 	}
 
-	var y = fnLine[fn];
+	var y = fnLine[msg.name];
 
-	charm.position(0, y).erase('end').write(fn.substr(0, 41));
-	charm.position(42, y).write(''+stats.runs);
-	charm.position(49, y).write(''+stats.errors);
-	charm.position(58, y).write(''+Math.round((stats.time / stats.runs) * 10) / 10);
-	charm.position(68, y).write(bytes(stats.mem / stats.runs));
+	charm.position(0, y).erase('end').write(msg.name.substr(0, 41));
+	charm.position(42, y).write(''+msg.stats.runs);
+	charm.position(49, y).write(''+msg.stats.errors);
+	charm.position(58, y).write(''+Math.round((msg.stats.time / msg.stats.runs) * 10) / 10);
+	charm.position(68, y).write(bytes(msg.stats.mem / msg.stats.runs));
 	bot();
-}
+});
 
 function reset() {
 	queueStats({queued: '     ', avail:'  ', workers:'  ', done:'      '});
@@ -87,3 +77,6 @@ function reset() {
 function bot() {
 	charm.position(0, process.stdout.rows);
 }
+
+
+comms.connect(argv.port, argv.host);

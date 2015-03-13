@@ -5,6 +5,13 @@ var locavore = require('../locavore'),
 var testFunctions = path.join(__dirname, 'functions');
 
 describe('Locavore', function() {
+	before(function() {
+		locavore.listenForMonitor();
+	});
+	after(function() {
+		locavore.closeMonitor();
+	});
+	
 	describe('single tenancy', function() {
 		configure(4, 1);
 		tests(8);

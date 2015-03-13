@@ -1,13 +1,13 @@
 var fs = require('fs'),
-	dgram = require('dgram'),
 	path = require('path'),
 	singleTenancy = require('./tenancy/single'),
 	multiTenancy = require('./tenancy/multi'),
 	child_process = require('child_process'),
+	comms = require('comms')(),
 	cpus = require('os').cpus().length,
 	colors = require('colors');
 
-var functions = {}, watchers = [], pool, currentOpts, taskid=0, completed=0, errors=0, debug=false;
+var functions = {}, watchers = [], pool, currentOpts, taskid=0, completed=0, errors=0, debug=false, nextSend = {};
 
 exports.init = function(opts) {
 
@@ -22,7 +22,6 @@ exports.init = function(opts) {
 		opts.maxWorkers = 1;
 		opts.maxPerProcess = 1;
 		tenant = singleTenancy;
-		send({type:'debugging'});
 	} else {
 		if (opts.maxPerProcess > 1) {
 			tenant = multiTenancy;
@@ -92,7 +91,7 @@ exports.invoke = function(fn, data, cb) {
 			if (err) {
 				done(err);
 			} else {
-				// sendQueueStats();
+				sendQueueStats();
 				proc.invokeid = id;
 				proc.once('done', release);
 				if (currentOpts.verbosity >= 4) {
@@ -157,12 +156,12 @@ exports.invoke = function(fn, data, cb) {
 					}
 					console.log(err, result && result.returnValue || '');
 				}
-				// sendQueueStats();
-				// sendFnStats(fn);
+				sendQueueStats();
+				sendFnStats(fn);
 			}
 		});
 
-		// sendQueueStats();
+		sendQueueStats();
 		cb(null, id); // Immediately return success.
 		      // If there are no available workers, `acquire` queues the request until one becomes available.
 	} else {
@@ -214,19 +213,23 @@ exports.shutdown = function() {
 	pool.destroyAllNow();
 };
 
-/*
-var udp = dgram.createSocket('udp4'), nextSend = {};
-function send(obj, cb) {
-	obj = new Buffer(JSON.stringify(obj));
-	udp.send(obj, 0, obj.length, 3033, '127.0.0.1', cb);
-}
+
+exports.listenForMonitor = function(port) {
+	comms.listen(port || 3034);
+};
+
+exports.closeMonitor = function(cb) {
+	comms.close(cb);
+};
+
+
 function sendQueueStats() {
 	if (!nextSend['*queue']) {
 		nextSend['*queue'] = setTimeout(function() {
 			
 			nextSend['*queue'] = null;
 			exports.stats(function(err, stats) {
-				send({type:'queue', stats:stats});
+				comms.send('queue', { stats:stats });
 			});
 
 		}, 100);
@@ -238,17 +241,15 @@ function sendFnStats(fn) {
 		nextSend[fn] = setTimeout(function() {
 			
 			nextSend[fn] = null;
-			send({type:'fn', name:fn, stats:functions[fn].stats});
+			comms.send('fn', { name:fn, stats:functions[fn].stats });
 
 		}, 100);
 	}
 }
-send({type:'start'});
-sendQueueStats();
 
-
-process.on('SIGINT', function() {
-	send({type:'stop'}, function() {
-		process.exit(0);
+comms.on('connection', function(socket) {
+	exports.stats(function(err, stats) {
+		socket.send('init', { debug: debug });
+		socket.send('queue', { stats:stats });
 	});
-});*/
+});
