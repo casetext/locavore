@@ -1,6 +1,6 @@
 {
   "name": "locavore",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Lovavore runs lambda functions locally.",
   "main": "index.js",
   "bin": {
