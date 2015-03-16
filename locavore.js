@@ -85,6 +85,13 @@ function now(id) {
 }
 
 exports.invoke = function(fn, data, cb) {
+	if (currentOpts.prefix instanceof RegExp) {
+		var match = currentOpts.prefix.exec(fn);
+		if (match) {
+			fn = fn.substr(match[0].length);
+		}
+	}
+
 	var meta = functions[fn], id = ++taskid, myPool = pool, maxRuntime, timeout;
 	if (meta) {
 		myPool.acquire(function(err, proc) {

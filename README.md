@@ -23,6 +23,26 @@ Locavore will start a web server that emulates the Lambda REST API.  The server 
 - Specified by the `PORT` environment variable; or
 - 3033
 
+<!-- ... -->
+
+	Usage: locavore [options] [directory]
+	(directory defaults to cwd)
+	
+	Options:
+	  -p, --port     Port to listen on
+	  
+	  -w, --workers  Maximum concurrent worker processes
+	  
+	  --perprocess   Maximum concurrent invocations per worker process
+	  
+	  --prefix       Function name prefix regex
+	  
+	  -d             Debug mode
+	  
+	  -v, --verbose  Verbosity 0-4                                      [default: 4]
+	  
+	  --help         Show help
+
 ### Running: Option 2
 `require('locavore')` in your project.  
 
@@ -51,6 +71,7 @@ Initializes Locavore.
 - `options.folder` (required) - the path to a folder containing folders of lambda functions.
 - `options.maxWorkers` - the maximum number of concurrent functions.  Defaults to *cpu cores* * 2.
 - `options.maxPerProcess` - controls function-process [tenancy](#tenancy).  Defaults to 1; make sure you [read and understand the caveats](#tenancy) before increasing this number.
+- `options.prefix` - a `RegExp` that matches a function name prefix.  `invoke()` strips the prefix from the supplied function name before comparing to known function names.  Useful if you use prefix-based versioning.
 - `options.debug` - enable debug mode.  In debug mode, locavore sets `maxWorkers` and `maxPerProcess` to 1, disables timeouts, and spawns a new worker process for each function invocation with `--debug-brk`.  You must then connect a debugger to the process and resume execution.
 - `options.verbosity` - controls how much output goes to the console.  Defaults to 4.
   [//]: # (github markdown sucks...)

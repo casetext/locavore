@@ -11,6 +11,16 @@ describe('Locavore', function() {
 	after(function() {
 		locavore.closeMonitor();
 	});
+
+	describe('basics', function() {
+		configure(1, 1, /test_/);
+		it('strips prefixes', function(done) {
+			locavore.invoke('test_ok', {}, ifErr(done));
+			locavore.drain(function() {
+				compareStats(1, 0, done);
+			});
+		});
+	});
 	
 	describe('single tenancy', function() {
 		configure(4, 1);
@@ -51,13 +61,14 @@ describe('Locavore', function() {
 	});
 });
 
-function configure(workers, perProcess) {
+function configure(workers, perProcess, prefix) {
 	beforeEach(function() {
 		locavore.init({
 			verbosity: 0,
 			folder: testFunctions,
 			maxWorkers: workers,
-			maxPerProcess: perProcess
+			maxPerProcess: perProcess,
+			prefix: prefix
 		});
 
 		locavore.resetStats();
