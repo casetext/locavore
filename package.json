@@ -4,7 +4,7 @@
   "description": "Lovavore runs lambda functions locally.",
   "main": "index.js",
   "bin": {
-    "locavore": "./run-web.js",
+    "locavore": "./run.js",
     "lvtop": "./monitor.js"
   },
   "scripts": {
