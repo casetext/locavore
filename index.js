@@ -1,5 +1,5 @@
 
 
-exports.core = require('./locavore');
+exports.Locavore = require('./locavore');
 
-exports.web = require('./web');
+exports.Web = require('./web');

@@ -1,11 +1,10 @@
 var express = require('express'),
-	bodyParser = require('body-parser'),
-	locavore = require('./locavore');
+	bodyParser = require('body-parser');
 
 
-exports.listen = function(port) {
+function LambdaRESTAPI(locavore) {
 
-	var app = express();
+	var app = this.app = express();
 
 	app.use(bodyParser.json());
 
@@ -38,13 +37,15 @@ exports.listen = function(port) {
 	app.put('/2014-11-13/functions/:fn/configuration', notImplemented); // UpdateFunctionConfiguration
 	app.put('/2014-11-13/functions/:fn', notImplemented); // UploadFunction
 
+}
 
-
-	function notImplemented(req, res) {
-		res.status(501).send({});
-	}
-
-	app.listen(port);
-
-	return app;
+LambdaRESTAPI.prototype.listen = function(port) {
+	this.app.listen(port);
 };
+
+exports = module.exports = LambdaRESTAPI;
+
+
+function notImplemented(req, res) {
+	res.status(501).send({});
+}

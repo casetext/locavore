@@ -1,16 +1,11 @@
-var locavore = require('../locavore'),
+var Locavore = require('../locavore'),
 	path = require('path'),
 	expect = require('chai').expect;
 
-var testFunctions = path.join(__dirname, 'functions');
+var testFunctions = path.join(__dirname, 'functions'), locavore;
+
 
 describe('Locavore', function() {
-	before(function() {
-		locavore.listenForMonitor();
-	});
-	after(function() {
-		locavore.closeMonitor();
-	});
 
 	describe('basics', function() {
 		configure(1, 1, /test_/);
@@ -63,15 +58,13 @@ describe('Locavore', function() {
 
 function configure(workers, perProcess, prefix) {
 	beforeEach(function() {
-		locavore.init({
+		locavore = new Locavore({
 			verbosity: 0,
 			folder: testFunctions,
 			maxWorkers: workers,
 			maxPerProcess: perProcess,
 			prefix: prefix
 		});
-
-		locavore.resetStats();
 	});
 	
 	afterEach(function() {
