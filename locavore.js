@@ -109,11 +109,6 @@ Locavore.prototype.init = function() {
 	}
 };
 
-
-function now(id) {
-	return '['.gray + id + ' ' + new Date().toISOString().gray + ']'.gray;
-}
-
 Locavore.prototype.invoke = function(fn, data, acceptanceCb, completionCb) {
 	var self = this;
 	if (self.opts.prefix instanceof RegExp) {
@@ -294,5 +289,10 @@ Locavore.prototype.sendFnStats = function(fn) {
 		}, 100);
 	}
 };
+
+
+function now(id) {
+	return '['.gray + id + ' ' + new Date().toISOString().gray + ']'.gray;
+}
 
 exports = module.exports = Locavore;
