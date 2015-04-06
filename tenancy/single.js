@@ -14,7 +14,7 @@ exports.getPool = function(opts) {
 			//sendQueueStats();
 		},
 		validate: function(proc) {
-			return proc.connected;
+			return proc.connected && !proc.invalid;
 		},
 		max: opts.maxWorkers || cpus * 2
 	});

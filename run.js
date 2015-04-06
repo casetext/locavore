@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
 var Web = require('./web'),
-	Locavore = require('./locavore');
+	Redis = require('./redis'),
+	Locavore = require('./locavore'),
+	url = require('url'),
 	argv = require('yargs')
 		.alias('p','port').describe('p','Port to listen on')
+		.alias('r','redis').describe('r','Listen to redis queue at host:port/queuename')
 		.alias('w','workers').describe('w','Maximum concurrent worker processes')
 		.alias('m','monitor').describe('m','Open monitor server on port 3034').boolean('m')
 		.alias('M','monitor-port').describe('M','Open monitor server on this port')
@@ -31,6 +34,16 @@ if (argv.M) {
 }
 
 new Web(locavore).listen(argv.p || process.env.PORT || 3033);
+
+if (argv.r) {
+	if (argv.r === true) {
+		argv.r = '127.0.0.1';
+	}
+	var cfg = url.parse('tcp:' + argv.r);
+	var redis = new Redis(locavore);
+	redis.connect(+cfg.port, cfg.hostname, (cfg.pathname || '').substr(1));
+	console.log('Listening to redis queue "' + redis.queue + '" on', redis.host, redis.port);
+}
 
 locavore.functionList(function(err, list) {
 	console.log('Ready. ', list.length, 'functions');

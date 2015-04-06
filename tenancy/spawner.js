@@ -55,6 +55,7 @@ exports.getProcess = function(opts, cb) {
 			proc.removeAllListeners();
 			proc.kill();
 			proc.send = null;
+			proc.invalid = true;
 		};
 		cb(null, proc);
 	}

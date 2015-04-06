@@ -1,4 +1,6 @@
 var Locavore = require('../locavore'),
+	Redis = require('../redis'),
+	redisConnection = require('redis').createClient(),
 	path = require('path'),
 	expect = require('chai').expect;
 
@@ -54,6 +56,93 @@ describe('Locavore', function() {
 			});
 		});
 	});
+
+	describe('redis', function() {
+		configure(4, 1);
+		var redis;
+		beforeEach(function(done) {
+			redisConnection.del('test-queue', function() {
+				redisConnection.del('test-queue.run', function() {
+					redis = new Redis(locavore);
+					redis.connect(null, null, 'test-queue');
+					done();
+				});
+			});
+		});
+
+		afterEach(function(done) {
+			redis.shutdown();
+			
+			redisConnection.llen('test-queue', function(err, count) {
+				if (err) {
+					throw err;
+				}
+				if (count > 0) {
+					throw new Error('Did not leave an empty queue');
+				}
+				redisConnection.llen('test-queue.run', function(err, count) {
+					if (err) {
+						throw err;
+					}
+					if (count > 0) {
+						throw new Error('Did not leave an empty run queue');
+					}
+					done();
+				});
+			});
+		});
+
+		it('handles jobs', function(done) {
+			redisInvoke('ok');
+			locavore.once('invoke', function() {
+				locavore.drain(function() {
+					compareStats(1, 0, done);
+				});
+			}, 100);
+		});
+
+
+		it('handles many jobs', function(done) {
+			// var log = console.log, start = Date.now();
+			// console.log = function() {
+			// 	process.stdout.write('[+ ' + (Date.now() - start) + '] ');
+			// 	log.apply(console, arguments);
+			// };
+			this.timeout(5000);
+			redisInvoke('long');
+			redisInvoke('long');
+			redisInvoke('long');
+			redisInvoke('long');
+			redisInvoke('long');
+			redisInvoke('long');
+			
+			bounce('invoke', 6, function() {
+				
+				locavore.drain(function() {
+					compareStats(6, 0, done);
+				});
+			});
+		});
+
+
+		it('handles anarchy', function(done) {
+			
+			this.timeout(5000);
+			
+			for (var i = 0; i < 16; i++) {
+				redisInvoke(['ok','fail','ok','sync-throw','ok','timeout'][i%6], {i:i});
+			}
+			
+			bounce('invoke', 16, function() {
+				
+				locavore.drain(function() {
+					compareStats(16, 8, done);
+				});
+			});
+
+		});
+
+	});
 });
 
 function configure(workers, perProcess, prefix) {
@@ -108,9 +197,7 @@ function tests(count) {
 		locavore.invoke('timeout', {}, function(err) {
 			if (err) return done(err);
 			locavore.drain(function() {
-				setTimeout(function() {
-					compareStats(1, 1, done);
-				}, 600);
+				compareStats(1, 1, done);
 			});
 		});
 	});
@@ -134,6 +221,7 @@ function tests(count) {
 
 
 	it('handles anarchy', function(done) {
+		this.timeout(5000);
 		
 		for (var i = 0; i < count; i++) {
 			locavore.invoke(['ok','fail','ok','sync-throw','ok','timeout'][i%6], {i:i}, ifErr(done));
@@ -154,7 +242,10 @@ function tests(count) {
 		this.timeout(5000);
 		var invokes = 0, ivl = setInterval(function() {
 			locavore.invoke('ok', {}, function(err) {
-				if (err) return done(err);
+				if (err) {
+					clearInterval(ivl);
+					return done(err);
+				}
 
 				if (++invokes >= Math.min(count, 64)) {
 					clearInterval(ivl);
@@ -167,6 +258,17 @@ function tests(count) {
 	});
 }
 
+function bounce(ev, count, cb) {
+	var seen = 0;
+	locavore.on(ev, ping);
+
+	function ping() {
+		if (++seen == count) {
+			locavore.removeListener(ev, ping);
+			cb();
+		}
+	}
+}
 
 function testInvoke(fn, expectError, cb) {
 	locavore.invoke(fn, {}, function(err) {
@@ -175,6 +277,14 @@ function testInvoke(fn, expectError, cb) {
 			compareStats(1, expectError ? 1 : 0, cb);
 		});
 	});
+}
+
+function redisInvoke(fn, args, cb) {
+	redisConnection.lpush('test-queue', JSON.stringify({
+		date: Date.now(),
+		fn: fn,
+		args: args
+	}), cb);
 }
 
 function compareStats(expectedDone, expectedErrors, cb) {

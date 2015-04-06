@@ -164,14 +164,18 @@ Locavore.prototype.invoke = function(fn, data, acceptanceCb, completionCb) {
 			}
 
 			function revoke() {
-				done('Function timed out after ' + maxRuntime + ' seconds; killed ' + proc.pid + '.');
+				done(new Error('Function timed out after ' + maxRuntime + ' seconds; killed ' + proc.pid + '.'));
 				if (proc.reap) {
 					proc.reap();
 				}
-				myPool.destroy(proc);
+				proc.invalid = true;
+				myPool.release(proc);
 			}
 
 			function done(err, result) {
+				process.nextTick(function() {
+					self.emit('free');
+				});
 				self.completed++;
 				meta.stats.runs++;
 				if (err) {
@@ -198,6 +202,7 @@ Locavore.prototype.invoke = function(fn, data, acceptanceCb, completionCb) {
 		});
 
 		self.sendQueueStats();
+		self.emit('invoke', fn, data);
 		if (acceptanceCb) {
 			acceptanceCb(null, id); // Immediately return success.
 			      // If there are no available workers, `acquire` queues the request until one becomes available.
@@ -211,6 +216,23 @@ Locavore.prototype.invoke = function(fn, data, acceptanceCb, completionCb) {
 		}
 	}
 
+};
+
+Locavore.prototype.free = function(cb) {
+	var self = this;
+	if (self.pool.waitingClientsCount() > 0 && self.pool.getPoolSize() >= self.pool.getMaxPoolSize()) {
+		self.on('free', go);		
+	} else {
+		cb();
+	}
+
+
+	function go() {
+		if (self.pool.waitingClientsCount() === 0) {
+			self.removeListener('free', go);
+			cb();
+		}
+	}
 };
 
 Locavore.prototype.functionList = function(cb) {

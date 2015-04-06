@@ -120,7 +120,7 @@ exports.getPool = function(opts) {
 			//sendQueueStats();
 		},
 		validate: function(mproc) {
-			return mproc.process.connected && !mproc.process.reap;
+			return mproc.process.connected && !mproc.process.reap && !mproc.invalid;
 		},
 		max: opts.maxWorkers * (opts.maxPerProcess)
 	});
