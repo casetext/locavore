@@ -104,7 +104,7 @@ Locavore.prototype.init = function() {
 				});
 
 			}, 200);
-			clearWatchers();
+			self.clearWatchers();
 		}
 	}
 };
