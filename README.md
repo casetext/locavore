@@ -5,9 +5,11 @@ locavore
 
 Locavore runs lambda functions locally.  It emulates AWS Lambda on your machine.
 
-Locavore keeps a pool of worker processes that jobs are distributed to.  By default, it will only allow *cpu cores* * 2 concurrent jobs; additional jobs will be queued.
+Locavore keeps a pool of worker processes that jobs are distributed to.  By default, it will only allow *cpu cores* * 2 concurrent jobs; additional jobs will be queued in-memory.
 
 Locavore watches the filesystem for changes to your functions.  When a change is detected, it will gracefully reload your functions.  Currently executing invocations are allowed to finish; new invocations are sent to freshly spawned worker processes.
+
+If you're particularly masochistic, you can even use locavore to run your functions in production.  A redis-backed queue is provided.
 
 Usage
 -----
@@ -23,30 +25,41 @@ Locavore will start a web server that emulates the Lambda REST API.  The server 
 - Specified by the `PORT` environment variable; or
 - 3033
 
+You can also have locavore listen to a redis queue with `-r`.  The default is `127.0.0.1:6379/default-queue`.  [hatstall](https://github.com/casetext/hatstall) is [an example of how to enqueue invocation requests](https://github.com/casetext/hatstall/blob/master/invoker/redis.js).
+
 <!-- ... -->
 
-	Usage: locavore [options] [directory]
-	(directory defaults to cwd)
-	
-	Options:
-	  -p, --port     Port to listen on
-	  
-	  -w, --workers  Maximum concurrent worker processes
-	  
-	  --perprocess   Maximum concurrent invocations per worker process
-	  
-	  --prefix       Function name prefix regex
-	  
-	  -d             Debug mode
-	  
-	  -v, --verbose  Verbosity 0-4                                      [default: 4]
-	  
-	  --help         Show help
+    Usage: locavore [options] [directory]
+    (directory defaults to cwd)
+    
+    Options:
+      -p, --port          Port to listen on
+    
+      -r, --redis         Listen to redis queue at host:port/queuename
+    
+      -w, --workers       Maximum concurrent worker processes
+    
+      -m, --monitor       Open monitor server on port 3034
+    
+      -M, --monitor-port  Open monitor server on this port
+    
+      --perprocess        Maximum concurrent invocations per worker process.  Read
+                          and understand the caveats at
+                          https://github.com/casetext/locavore#tenancy before using
+                          this option.
+    
+      --prefix            Function name prefix regex
+    
+      -d                  Debug mode
+    
+    -v, --verbose       Verbosity 0-4                                 [default: 4]
+    
+      --help              Show help
 
 ### Running: Option 2
 `require('locavore')` in your project.  
 
-You can then call `locavore.core.init({...})` and then `locavore.web.listen(port)` to stand up the Lambda REST API server, or you can use the [programmatic API](#api).
+You can then instantiate a `new Locavore({...})` and then use a `new Web({...})` to stand up the Lambda REST API server, a `new Redis({...})` to listen to a redis queue, and/or you can use the [programmatic API](#api) to invoke functions.
 
 Tenancy
 -------
@@ -64,17 +77,17 @@ Tenancy is controlled by the `maxPerProcess` option.
 API
 ---
 
-### `locavore.core.init(options)`
+### `new Locavore(options)`
 
 Initializes Locavore.
 
 - `options.folder` (required) - the path to a folder containing folders of lambda functions.
+- `options.watch` - whether locavore should watch for changes to function code and automatically reload changed code.  Defaults to `true`.
 - `options.maxWorkers` - the maximum number of concurrent functions.  Defaults to *cpu cores* * 2.
 - `options.maxPerProcess` - controls function-process [tenancy](#tenancy).  Defaults to 1; make sure you [read and understand the caveats](#tenancy) before increasing this number.
 - `options.prefix` - a `RegExp` that matches a function name prefix.  `invoke()` strips the prefix from the supplied function name before comparing to known function names.  Useful if you use prefix-based versioning.
 - `options.debug` - enable debug mode.  In debug mode, locavore sets `maxWorkers` and `maxPerProcess` to 1, disables timeouts, and spawns a new worker process for each function invocation with `--debug-brk`.  You must then connect a debugger to the process and resume execution.
 - `options.verbosity` - controls how much output goes to the console.  Defaults to 4.
-  [//]: # (github markdown sucks...)
   <ol start="0">
   <li type="1">nothing</li>
   <li type="1">critical: bad function package.json, missing funciton</li>
@@ -83,24 +96,27 @@ Initializes Locavore.
   <li type="1">verbose: function start/stop</li>
   </ol>
 
+#### `Locavore#init()`
 
-### `locavore.core.invoke(fn, data, cb)`
+Reloads all of the functions in this instance's `options.folder`.  Any currently executing tasks are allowed to finish.  New requests are routed to new worker processes with the updated code.
+
+#### `Locavore#invoke(fn, data, cb)`
 
 Invokes the function (in the folder) named `fn` and passes in `data`.
 
-### `locavore.core.functionList(cb)`
+#### `Locavore#functionList(cb)`
 
 Gives you a list of functions that locavore knows about.
 
-### `locavore.core.listenForMonitor(port)`
+#### `Locavore#listenForMonitor(port)`
 
 Listens for connections from the CLI monitor.  `port` defaults to 3034.
 
-### `locavore.core.closeMonitor([cb])`
+#### `Locavore#closeMonitor([cb])`
 
 Closes the CLI monitor port and disconnects any clients.
 
-### `locavore.core.stats(cb)`
+#### `Locavore#stats(cb)`
 
 Gives you an object containing the following statistics:
 
@@ -109,19 +125,35 @@ Gives you an object containing the following statistics:
 - `queued` - The current number of queued function invocations
 - `done` - The total number of completed function invocations
 
-### `locavore.core.resetStats()`
+#### `Locavore#resetStats()`
 
 Resets the invocation/error counts.
 
-### `locavore.core.drain(cb)`
+#### `Locavore#drain([cb])`
 
 Calls the function `cb` after all pending function invocations have completed.
 
 **Warning:**  No additional functions can be invoked after `drain()`.  Call `init` again to reset.
 
-### `locavore.core.shutdown()`
+#### `Locavore#shutdown()`
 
 Shuts down locavore immediately, killing worker processes.  It's usually a good idea to `drain()` first.
+
+### `new Web(locavore)`
+
+Creates a new Lambda REST API server attached to the supplied `Locavore` instance.
+
+#### `Web#listen(...)`
+
+Begin accepting connections to the REST server.  The arguments are identical to [`http.Server#listen`](https://nodejs.org/api/http.html#http_server_listen_port_hostname_backlog_callback).
+
+### `new Redis(locavore)`
+
+Creates a new redis queue adapter attached to the supplied `Locavore` instance.
+
+#### `Redis#connect([port[, host[, queue]]])`
+
+Connects the adapter to the specified redis server.  `port` defaults to `6379`, `host` to `127.0.0.1`, and `queue` to `'default-queue'`.  Multiple locavores may safely listen to the same queue.
 
 REST API
 --------
@@ -130,6 +162,19 @@ Locavore supports a subset of [Lambda's API endpoints](http://docs.aws.amazon.co
 
 - `/2014-11-13/functions/<function-name>/invoke-async/`
 - `/2014-11-13/functions/`
+
+Redis Queue
+-----------
+
+Locavore `RPOP`s items off of a redis list.  The items are expected to be JSON-serialized strings of:
+
+    {
+        "date": Date.now(),
+        "fn": "function-name",
+        "args": { ... }
+    }
+
+`LPUSH` onto the list.
 
 Monitoring
 ----------
@@ -150,3 +195,19 @@ When you `npm install -g locavore`, npm adds the `lvtop` command.
 	  -h, --host  Connect to this host                        [default: "127.0.0.1"]
 	  
 	  --help      Show help
+
+Changes since 1.x
+=================
+
+Locavore 1.x exposed itself as a singleton.  It is now a class that can be instantiated multiple times.  Instead of:
+
+    var locavore = require('locavore');
+    locavore.core.init({...});
+
+Now:
+
+    var locavore = new require('locavore').Locavore({...});
+
+The REST API server is similar.
+
+The redis queue functionality is new in 2.0.
