@@ -24,7 +24,7 @@
     "comms": "^0.0.2",
     "console-title": "^1.0.1",
     "express": "^4.10.5",
-    "generic-pool": "^2.1.1",
+    "generic-pool": "^2.2.0",
     "memwatch": "^0.2.2",
     "pretty-hrtime": "^0.2.2",
     "redis": "^0.12.1",
