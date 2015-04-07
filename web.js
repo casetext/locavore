@@ -39,8 +39,8 @@ function LambdaRESTAPI(locavore) {
 
 }
 
-LambdaRESTAPI.prototype.listen = function(port) {
-	this.app.listen(port);
+LambdaRESTAPI.prototype.listen = function() {
+	this.app.listen.apply(this.app, arguments);
 };
 
 exports = module.exports = LambdaRESTAPI;
