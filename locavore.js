@@ -73,7 +73,9 @@ Locavore.prototype.init = function() {
 					mem: 0
 				};
 
-				self.watchers.push(fs.watch(self.functions[fn].path, needReload));
+				if (self.opts.watch !== false) {
+					self.watchers.push(fs.watch(self.functions[fn].path, needReload));
+				}
 			}
 		} catch(ex) {
 			if (opts.verbosity >= 1) {
@@ -82,6 +84,16 @@ Locavore.prototype.init = function() {
 		}
 	});
 
+	var oldPool = self.pool;
+	if (oldPool) {
+		oldPool.drain(function() {
+			if (opts.verbosity >= 1) {
+				console.log(now('locavore'.bgGreen), 'Drained old worker pool');
+			}
+			oldPool.destroyAllNow();
+			oldPool = null;
+		});
+	}
 
 	self.pool = self.tenant.getPool(opts);
 
@@ -93,16 +105,7 @@ Locavore.prototype.init = function() {
 				console.log(now('locavore'.bgGreen), 'Change to function detected, reloading...');
 			}
 			doom = setTimeout(function() {
-				var oldPool = self.pool;
 				self.init();
-				oldPool.drain(function() {
-					if (opts.verbosity >= 1) {
-						console.log(now('locavore'.bgGreen), 'Drained old worker pool');
-					}
-					oldPool.destroyAllNow();
-					oldPool = null;
-				});
-
 			}, 200);
 			self.clearWatchers();
 		}
