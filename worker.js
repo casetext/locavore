@@ -1,6 +1,11 @@
-var memwatch = require('memwatch')
-	, prettyHrtime = require('pretty-hrtime');
+var prettyHrtime = require('pretty-hrtime'),
+	memwatch;
 
+process.argv.forEach(function(arg) {
+	if (arg == 'mem') {
+		memwatch = require('memwatch');
+	}
+});
 
 process.on('message', function(msg) {
 	run(msg);
@@ -50,7 +55,7 @@ function run(task) {
 		}
 	};
 
-	if (!task.multi) {
+	if (memwatch && !task.multi) {
 		hd = new memwatch.HeapDiff();
 	}
 	t = process.hrtime();

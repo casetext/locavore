@@ -2,7 +2,12 @@ var child_process = require('child_process'),
 	path = require('path');
 
 exports.getProcess = function(opts, cb) {
-	var proc = child_process.fork(path.join(__dirname, '..', 'worker.js'), [], {
+	var args = [];
+	if (opts.mem) {
+		args.push('mem');
+	}
+
+	var proc = child_process.fork(path.join(__dirname, '..', 'worker.js'), args, {
 		silent: true,
 		execArgv: opts.debug ? ['--debug-brk'] : []
 	});

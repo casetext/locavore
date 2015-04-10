@@ -62,7 +62,7 @@ comms.on('fn', function(msg) {
 	charm.position(42, y).write(''+msg.stats.runs);
 	charm.position(49, y).write(''+msg.stats.errors);
 	charm.position(58, y).write(''+Math.round((msg.stats.time / msg.stats.runs) * 10) / 10);
-	charm.position(68, y).write(bytes(msg.stats.mem / msg.stats.runs));
+	charm.position(68, y).write(msg.stats.mem ? bytes(msg.stats.mem / msg.stats.runs) : '-'.gray);
 	bot();
 });
 
