@@ -8,9 +8,14 @@ process.on('message', function(msg) {
 
 
 function run(task) {
-	var hd, t, context = {
+	var hd, t, finished, context = {
 		invokeid: task.id,
 		done: function(err, result) {
+			if (finished) {
+				console.error('Task ' + task.id + ' called done() multiple times.\r\nerr =', err, '\r\nresult =', result, '\r\n', new Error().stack);
+				return;
+			}
+			finished = true;
 			var time = process.hrtime(t), mem;
 			if (hd) {
 				mem = hd.end().change;
