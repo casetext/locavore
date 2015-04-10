@@ -10,6 +10,7 @@ var Web = require('./web'),
 		.alias('w','workers').describe('w','Maximum concurrent worker processes')
 		.alias('m','monitor').describe('m','Open monitor server on port 3034').boolean('m')
 		.alias('M','monitor-port').describe('M','Open monitor server on this port')
+		.alias('u','mem').describe('u', 'Track function memory usage').boolean('u')
 		.describe('perprocess','Maximum concurrent invocations per worker process.  Read and understand the caveats at https://github.com/casetext/locavore#tenancy before using this option.')
 		.describe('prefix','Function name prefix regex')
 		.boolean('d').describe('d','Debug mode')
@@ -20,6 +21,7 @@ var Web = require('./web'),
 
 var locavore = new Locavore({
 	debug: argv.d,
+	mem: argv.u,
 	folder: argv._[0] || process.cwd(),
 	maxWorkers: argv.w,
 	maxPerProcess: argv.perprocess,

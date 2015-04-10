@@ -43,6 +43,8 @@ You can also have locavore listen to a redis queue with `-r`.  The default is `1
     
       -M, --monitor-port  Open monitor server on this port
     
+      -u, --mem           Track function memory usage
+    
       --perprocess        Maximum concurrent invocations per worker process.  Read
                           and understand the caveats at
                           https://github.com/casetext/locavore#tenancy before using
@@ -87,6 +89,7 @@ Initializes Locavore.
 - `options.maxPerProcess` - controls function-process [tenancy](#tenancy).  Defaults to 1; make sure you [read and understand the caveats](#tenancy) before increasing this number.
 - `options.prefix` - a `RegExp` that matches a function name prefix.  `invoke()` strips the prefix from the supplied function name before comparing to known function names.  Useful if you use prefix-based versioning.
 - `options.debug` - enable debug mode.  In debug mode, locavore sets `maxWorkers` and `maxPerProcess` to 1, disables timeouts, and spawns a new worker process for each function invocation with `--debug-brk`.  You must then connect a debugger to the process and resume execution.
+- `options.mem` - track function memory usage.  This requires worker processes to do a full garbage collection prior to every invocation, which can add significant runtime overhead.
 - `options.verbosity` - controls how much output goes to the console.  Defaults to 4.
   <ol start="0">
   <li type="1">nothing</li>
