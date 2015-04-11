@@ -5,14 +5,18 @@ function RedisQueueHandler(locavore) {
 	this.locavore = locavore;
 }
 
-RedisQueueHandler.prototype.connect = function(port, host, queue) {
+RedisQueueHandler.prototype.connect = function(port, host, redisOpts, queue) {
+	if (typeof redisOpts == 'string') {
+		queue = redisOpts;
+		redisOpts = {};
+	}
 	var self = this;
 	this.port = port = port || 6379;
 	this.host = host = (host && host !== true ? host : null) || '127.0.0.1';
 	this.queue = queue = queue || 'default-queue';
 
-	var redisQueueListener = Redis.createClient(port, host, {}),
-		redisQueueSweeper = Redis.createClient(port, host, {});
+	var redisQueueListener = Redis.createClient(port, host, redisOpts || {}),
+		redisQueueSweeper = Redis.createClient(port, host, redisOpts || {});
 
 	this._redis = [redisQueueListener, redisQueueSweeper];
 
